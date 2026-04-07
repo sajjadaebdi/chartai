@@ -145,8 +145,10 @@ export async function POST(req) {
       "Rules:",
       "- Keep each field concise but useful.",
       "- confidence should be a human-readable percentage string (e.g. '74%').",
-      "- Include realistic entry, exit, stop_loss and risk_reward.",
-      "- disclaimer must clearly state this is not financial advice.",
+      "- entry and exit must be phrased as potential zones/ranges, not direct trading instructions.",
+      "- Do not use imperative buy/sell language or guarantee outcomes.",
+      "- prediction should describe an AI-based scenario with uncertainty.",
+      "- disclaimer must clearly state: educational use only, not financial advice, no guarantee of accuracy or profit, user remains fully responsible.",
     ].join("\n");
 
     const aiRes = await openai.chat.completions.create({

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import CameraCapture from "@/components/CameraCapture";
 import Image from "next/image";
+import Link from "next/link";
 
 type Analysis = {
   trend: string;
@@ -32,6 +33,10 @@ type HistoryItem = {
 
 const HISTORY_KEY = "stock-analyzer-v2-history";
 const MAX_HISTORY = 20;
+const GLOBAL_DISCLAIMER =
+  "This platform provides AI-generated analysis for educational purposes only and does not constitute financial or investment advice. No guarantees of accuracy or profit are made. You are solely responsible for your decisions.";
+const MARKETS_RISK_NOTE =
+  "Markets are risky. Past performance does not guarantee future results.";
 
 function parseConfidence(value: string): number {
   const match = value?.match(/(\d{1,3})/);
@@ -66,6 +71,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [imagePreview, setImagePreview] = useState("");
+  const [consentChecked, setConsentChecked] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -134,6 +140,11 @@ export default function Home() {
   }
 
   async function onAnalyze() {
+    if (!consentChecked) {
+      setError("Please confirm the consent statement before analysis.");
+      return;
+    }
+
     if (!image) {
       setError("Please upload a chart image first.");
       return;
@@ -310,10 +321,34 @@ export default function Home() {
                   />
                 </label>
 
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Important</p>
+                  <p className="mt-1 text-xs leading-5 text-amber-700">{GLOBAL_DISCLAIMER}</p>
+                </div>
+
+                <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <input
+                    type="checkbox"
+                    checked={consentChecked}
+                    onChange={(event) => {
+                      setConsentChecked(event.target.checked);
+                      if (event.target.checked) setError("");
+                    }}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-xs leading-5 text-slate-700">
+                    I understand this is not financial advice and I am responsible for my decisions.
+                  </span>
+                </label>
+
+                {!consentChecked ? (
+                  <p className="text-xs text-amber-700">Consent is required before analysis.</p>
+                ) : null}
+
                 <button
                   type="button"
                   onClick={onAnalyze}
-                  disabled={loading}
+                  disabled={loading || !consentChecked}
                   className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-blue-300"
                 >
                   {loading ? "Analyzing chart..." : "Analyze with AI"}
@@ -328,6 +363,11 @@ export default function Home() {
 
           {activeAnalysis ? (
             <section className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              <section className="rounded-2xl border border-blue-200 bg-blue-50 p-4 md:col-span-2 xl:col-span-3">
+                <p className="text-sm font-semibold text-blue-800">AI-generated • Probabilistic analysis</p>
+                <p className="mt-1 text-xs text-blue-700">{MARKETS_RISK_NOTE}</p>
+              </section>
+
               <Card title="📈 Trend">
                 <span
                   className={`inline-flex rounded-full border px-3 py-1 text-sm font-semibold ${trendStyles(
@@ -338,15 +378,17 @@ export default function Home() {
                 </span>
               </Card>
 
-              <Card title="🎯 Entry / Exit / Stop Loss">
-                <p><strong>Entry:</strong> {activeAnalysis.entry || "N/A"}</p>
-                <p><strong>Exit:</strong> {activeAnalysis.exit || "N/A"}</p>
+              <Card title="🎯 Potential Entry Zone / Possible Exit Range / Stop Loss">
+                <p><strong>Potential Entry Zone:</strong> {activeAnalysis.entry || "N/A"}</p>
+                <p><strong>Possible Exit Range:</strong> {activeAnalysis.exit || "N/A"}</p>
                 <p><strong>Stop Loss:</strong> {activeAnalysis.stop_loss || "N/A"}</p>
                 <p><strong>Risk / Reward:</strong> {activeAnalysis.risk_reward || "N/A"}</p>
               </Card>
 
               <Card title="📊 Confidence">
-                <p className="mb-3 text-sm font-semibold text-slate-700">{activeAnalysis.confidence || "N/A"}</p>
+                <p className="mb-3 text-sm font-semibold text-slate-700">
+                  AI Confidence Score: {activeAnalysis.confidence || "N/A"} (model estimate)
+                </p>
                 <div className="h-3 w-full rounded-full bg-slate-200">
                   <div
                     className="h-3 rounded-full bg-blue-600 transition-all"
@@ -363,14 +405,17 @@ export default function Home() {
               <Card title="📰 News">{activeAnalysis.news || "N/A"}</Card>
 
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.06)] md:col-span-2 xl:col-span-3">
-                <h3 className="mb-3 text-sm font-semibold tracking-wide text-slate-500">📌 Prediction Summary</h3>
+                <h3 className="mb-3 text-sm font-semibold tracking-wide text-slate-500">📌 AI-Based Scenario</h3>
                 <p className="text-sm leading-7 text-slate-700">{activeAnalysis.prediction || "N/A"}</p>
                 <p className="mt-3 border-t border-slate-100 pt-3 text-sm leading-7 text-slate-700">{activeAnalysis.summary || "N/A"}</p>
               </section>
 
-              <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-[0_8px_24px_rgba(15,23,42,0.06)] md:col-span-2 xl:col-span-3">
-                <h3 className="mb-2 text-sm font-semibold tracking-wide text-amber-800">⚠️ Disclaimer</h3>
-                <p className="text-sm leading-7 text-amber-700">{activeAnalysis.disclaimer || "N/A"}</p>
+              <section className="rounded-2xl border border-amber-300 bg-amber-50 p-5 shadow-[0_8px_24px_rgba(15,23,42,0.06)] md:col-span-2 xl:col-span-3">
+                <h3 className="mb-2 text-sm font-semibold tracking-wide text-amber-900">⚠️ Legal Disclaimer</h3>
+                <p className="text-sm leading-7 font-medium text-amber-800">
+                  {activeAnalysis.disclaimer || GLOBAL_DISCLAIMER}
+                </p>
+                <p className="mt-2 text-xs text-amber-700">{MARKETS_RISK_NOTE}</p>
               </section>
             </section>
           ) : (
@@ -378,6 +423,19 @@ export default function Home() {
               Analysis results will appear here once you upload and analyze a chart.
             </section>
           )}
+
+          <footer className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 text-xs text-slate-500">
+            <p className="leading-6 text-slate-600">{GLOBAL_DISCLAIMER}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-4">
+              <Link href="/terms" className="font-medium text-slate-700 hover:text-slate-900">
+                Terms & Conditions
+              </Link>
+              <Link href="/privacy" className="font-medium text-slate-700 hover:text-slate-900">
+                Privacy Policy
+              </Link>
+              <span className="text-slate-500">18+ use only</span>
+            </div>
+          </footer>
         </main>
       </div>
     </div>
