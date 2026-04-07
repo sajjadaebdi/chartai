@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import CameraCapture from "@/components/CameraCapture";
 import Image from "next/image";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import AuthButton from "@/components/AuthButton";
 
 type Analysis = {
   trend: string;
@@ -63,6 +65,8 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 }
 
 export default function Home() {
+  const { data: session, status } = useSession();
+  const isLoggedIn = Boolean(session?.user);
   const [symbol, setSymbol] = useState("");
   const [image, setImage] = useState<File | null>(null);
   const [activeAnalysis, setActiveAnalysis] = useState<Analysis | null>(null);
@@ -75,6 +79,11 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (status === "loading") return;
+    if (!isLoggedIn) {
+      setHistory([]);
+      return;
+    }
     try {
       const raw = localStorage.getItem(HISTORY_KEY);
       if (!raw) return;
@@ -84,7 +93,7 @@ export default function Home() {
     } catch {
       localStorage.removeItem(HISTORY_KEY);
     }
-  }, []);
+  }, [isLoggedIn, status]);
 
   const confidenceValue = useMemo(
     () => parseConfidence(activeAnalysis?.confidence ?? ""),
@@ -92,6 +101,7 @@ export default function Home() {
   );
 
   function persistHistory(nextHistory: HistoryItem[]) {
+    if (!isLoggedIn) return;
     setHistory(nextHistory);
     localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
   }
@@ -140,6 +150,11 @@ export default function Home() {
   }
 
   async function onAnalyze() {
+    if (!isLoggedIn) {
+      setError("Please login to use this feature.");
+      return;
+    }
+
     if (!consentChecked) {
       setError("Please confirm the consent statement before analysis.");
       return;
@@ -217,7 +232,11 @@ export default function Home() {
           </div>
 
           <div className="space-y-3">
-            {history.length === 0 ? (
+            {!isLoggedIn ? (
+              <p className="rounded-xl border border-dashed border-slate-200 p-3 text-sm text-slate-500">
+                Please login to use this feature and save analysis history.
+              </p>
+            ) : history.length === 0 ? (
               <p className="rounded-xl border border-dashed border-slate-200 p-3 text-sm text-slate-500">
                 No analyses yet. Upload a chart to begin.
               </p>
@@ -242,10 +261,15 @@ export default function Home() {
 
         <main className="flex-1">
           <header className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-900">AI Chart Analyzer</h1>
-            <p className="mt-2 text-sm text-slate-500">
-              Upload any chart screenshot, run multimodal analysis, and generate a probability-based trade setup.
-            </p>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-semibold tracking-tight text-slate-900">AI Chart Analyzer</h1>
+                <p className="mt-2 text-sm text-slate-500">
+                  Upload any chart screenshot, run multimodal analysis, and generate a probability-based trade setup.
+                </p>
+              </div>
+              <AuthButton />
+            </div>
           </header>
 
           <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
@@ -348,11 +372,21 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={onAnalyze}
-                  disabled={loading || !consentChecked}
+                  disabled={loading || !consentChecked || !isLoggedIn || status === "loading"}
                   className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-blue-300"
                 >
-                  {loading ? "Analyzing chart..." : "Analyze with AI"}
+                  {loading
+                    ? "Analyzing chart..."
+                    : status === "loading"
+                    ? "Loading session..."
+                    : isLoggedIn
+                    ? "Analyze with AI"
+                    : "Login to Analyze"}
                 </button>
+
+                {!isLoggedIn && status !== "loading" ? (
+                  <p className="text-xs text-rose-700">Please login to use this feature.</p>
+                ) : null}
 
                 {error ? (
                   <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>
