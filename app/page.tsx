@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import CameraCapture from "@/components/CameraCapture";
+import Image from "next/image";
 
 type Analysis = {
   trend: string;
@@ -63,6 +65,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [imagePreview, setImagePreview] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -96,7 +99,18 @@ export default function Home() {
     }
     setError("");
     setImage(file);
+    const preview = URL.createObjectURL(file);
+    setImagePreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return preview;
+    });
   }
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
 
   async function fileToBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -224,7 +238,7 @@ export default function Home() {
           </header>
 
           <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
-            <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+            <div className="grid gap-6 lg:grid-cols-3">
               <div
                 onDragOver={(event) => {
                   event.preventDefault();
@@ -258,6 +272,30 @@ export default function Home() {
                 />
                 <p className="mt-3 text-xs text-slate-400">
                   {image ? `Selected: ${image.name}` : "No file selected"}
+                </p>
+
+                {imagePreview ? (
+                  <div className="mt-4 overflow-hidden rounded-xl border border-slate-200">
+                    <Image
+                      src={imagePreview}
+                      alt="Selected chart preview"
+                      width={768}
+                      height={352}
+                      className="h-44 w-full object-cover"
+                    />
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="space-y-4">
+                <CameraCapture
+                  onCapture={(file) => {
+                    handleSelectImage(file);
+                  }}
+                  onError={(message) => setError(message)}
+                />
+                <p className="text-xs text-slate-500">
+                  Use Camera for real-time chart snapshots on mobile or desktop.
                 </p>
               </div>
 
